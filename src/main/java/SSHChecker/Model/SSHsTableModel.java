@@ -58,7 +58,6 @@ public class SSHsTableModel extends AbstractTableModel {
         for(SSH ssh : sshs)
             ssh.setIndex(indexCount++);
     }
-
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
         return columnEditable[columnIndex];

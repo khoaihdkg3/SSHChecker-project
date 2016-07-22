@@ -13,9 +13,10 @@ import SSHChecker.SSH;
  * @author Administrator
  */
 public abstract class SSHChecking implements Runnable{
-    private int timeout = 30000;
-    private SSH ssh = null;
-    private SSHsTableModel model = null;
+    protected int numSSH = 0;
+    protected int timeout = 30000;
+    protected SSH ssh = null;
+    protected SSHsTableModel model = null;
     public void setTimeout(int timeout){
         this.timeout = timeout;
     };
@@ -24,6 +25,9 @@ public abstract class SSHChecking implements Runnable{
     };
     public void setModel(SSHsTableModel model){
         this.model = model;
+    };
+    public void setNumSSH(int numSSH){
+        this.numSSH = numSSH;
     };
     public int getTimeout(){
         return this.timeout;
@@ -34,5 +38,7 @@ public abstract class SSHChecking implements Runnable{
     public SSHsTableModel getModel(){
         return this.model;
     };
-    
+    public int getNumSSH(){
+        return this.numSSH;
+    }
 }

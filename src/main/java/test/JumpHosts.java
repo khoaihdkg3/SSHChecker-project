@@ -1,3 +1,5 @@
+package test;
+
 import com.jcraft.jsch.*;
 import java.awt.*;
 import java.io.BufferedReader;

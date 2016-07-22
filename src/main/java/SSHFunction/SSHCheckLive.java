@@ -6,10 +6,7 @@
 package SSHFunction;
 
 import SSHChecker.Model.SSHsTableModel;
-import static SSHChecker.Renderer.ProgressRenderer.TYPE_EMPTY_TEXT;
-import static SSHChecker.Renderer.ProgressRenderer.TYPE_WAITING_TEXT;
 import SSHChecker.SSH;
-import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
@@ -23,10 +20,16 @@ import java.io.IOException;
  */
 public class SSHCheckLive extends SSHChecking implements Runnable {
 
+    private boolean isFCheck = false;
+
     public SSHCheckLive(SSH ssh, int timeout, SSHsTableModel model) {
         super.setSSH(ssh);
         super.setTimeout(timeout);
         super.setModel(model);
+    }
+
+    public void setFreshChecking(boolean isFCheck) {
+        this.isFCheck = isFCheck;
     }
 
     @Override
@@ -55,21 +58,21 @@ public class SSHCheckLive extends SSHChecking implements Runnable {
             session.connect(getTimeout());
             isConnected = session.isConnected();
             timeWaiting = System.currentTimeMillis() - startTime;
-            if (isConnected) {
-                session.setPortForwardingL(localPort, remoteHost, remotePort);
-                //System.out.println(localPort+" shell:");
-                Channel channel = session.openChannel("shell");
-                channel.setOutputStream(System.out);
-                channel.connect();
-                channel.disconnect();
-                myHTTP http = new myHTTP();
-                try {
-                    int responseCode = http.GET("http://"+localHost+":"+localPort+"/");
-                    //http.writetofile("D:\\test\\"+localPort+".html", false);
-                    if (responseCode == 200) 
-                        isFresh = true;
-                } catch (IOException ex) {
-                   //System.err.println(localPort+" -> "+ex);
+            if (isFCheck) {
+                if (isConnected) {
+                    session.setPortForwardingL(localPort, remoteHost, remotePort);
+                    //System.out.println(localPort+" shell:");
+
+                    myHTTP http = new myHTTP();
+                    try {
+                        int responseCode = http.GET("http://" + localHost + ":" + localPort + "/");
+                        //http.writetofile("D:\\test\\"+localPort+".html", false);
+                        if (responseCode == 200) {
+                            isFresh = true;
+                        }
+                    } catch (IOException ex) {
+                        //System.err.println(localPort+" -> "+ex);
+                    }
                 }
             }
             session.disconnect();
@@ -77,7 +80,7 @@ public class SSHCheckLive extends SSHChecking implements Runnable {
             //System.err.println(localPort+" -> "+ex);
             isConnected = false;
         }
-        status = (isConnected?"Working":"Error");
+        status = (isConnected ? "Working" : "Error");
         ssh.setIsFresh(isFresh);
         ssh.setTime(timeWaiting);
         ssh.setStatus(status);

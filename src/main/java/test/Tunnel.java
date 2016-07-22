@@ -1,3 +1,5 @@
+package test;
+
 
 import SSHFunction.myHTTP;
 import com.jcraft.jsch.*;

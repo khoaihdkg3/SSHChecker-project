@@ -6,8 +6,8 @@
 package SSHFunction;
 
 import SSHChecker.Model.SSHsTableModel;
-import static SSHChecker.Renderer.ProgressRenderer.TYPE_EMPTY_TEXT;
-import static SSHChecker.Renderer.ProgressRenderer.TYPE_WAITING_TEXT;
+import static SSHChecker.Renderer.ProgressBLCheckingRenderer.TYPE_EMPTY_TEXT;
+import static SSHChecker.Renderer.ProgressBLCheckingRenderer.TYPE_WAITING_TEXT;
 import SSHChecker.SSH;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;

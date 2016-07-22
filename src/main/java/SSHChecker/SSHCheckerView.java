@@ -1,13 +1,16 @@
 package SSHChecker;
 
+import SSHChecker.Renderer.ProgressRenderer;
+import SSHChecker.Editor.FileChooseEditor;
 import SSHChecker.Model.SSHsTableModel;
 import SSHChecker.Editor.IntegerEditor;
+import SSHChecker.Model.SSHsTableSettingModel;
 import SSHChecker.Renderer.CheckBoxRenderer;
+import SSHChecker.Renderer.FileChooseRenderer;
 import SSHChecker.Renderer.IntegerRenderer;
 import SSHChecker.Renderer.LabelwithFlagRenderer;
 import SSHChecker.Renderer.LabelwithIconRenderer;
-import SSHChecker.Renderer.ProgressRenderer;
-import SSHFunction.SSHCheckBL;
+import SSHChecker.Renderer.ProgressBLCheckingRenderer;
 import SSHFunction.SSHCheckLive;
 import SSHFunction.SSHChecking;
 import SSHFunction.SSHCheckingFactory;
@@ -23,6 +26,7 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import static java.awt.image.ImageObserver.WIDTH;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,7 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -56,6 +59,7 @@ import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.CellEditorListener;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -74,7 +78,7 @@ import org.jsoup.select.Elements;
  *
  * @author Củ Chuối
  */
-public class SSHCheckerView extends javax.swing.JFrame {
+public class SSHCheckerView extends javax.swing.JFrame implements ChooseFile {
 
     /**
      * Creates new form SSHCheckerView
@@ -89,7 +93,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
     }
 
     private void loadIPDatabase() {
-        insertLog(setTagtoText(processtext, "ProcessText", "Loading database GeoIP..."));
+        insertLog(setTagtoText(processtext, "ProcessText", "Loading GeoIP database..."));
         try {
             dbreader = new DatabaseReader.Builder(ipDB).build();
         } catch (IOException ex) {
@@ -110,7 +114,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
         settingTable();
 
         jTableModel_sshlist = (SSHsTableModel) jTable_sshlist.getModel();
-        jTableModel_setting = (DefaultTableModel) jTable_setting.getModel();
+        jTableModel_setting = (SSHsTableSettingModel) jTable_setting.getModel();
     }
 
     class closeingEvent extends WindowAdapter {
@@ -122,17 +126,28 @@ public class SSHCheckerView extends javax.swing.JFrame {
             int dvder1 = jSplitPane1.getDividerLocation();
             int dvder2 = jSplitPane2.getDividerLocation();
             prefers.setJFramePrefs(W, H, dvder1, dvder2);
-            int Timeout = (int) jTableModel_setting.getValueAt(0, 1);
-            String RCWhen = (String) jTableModel_setting.getValueAt(1, 1);
-            int RCCount = (int) jTableModel_setting.getValueAt(2, 1);
-            boolean IsBLC = (boolean) jTableModel_setting.getValueAt(3, 1);
-            boolean IsLC = (boolean) jTableModel_setting.getValueAt(4, 1);
-            boolean IsFC = (boolean) jTableModel_setting.getValueAt(5, 1);
-            int BLCTCount = (int) jTableModel_setting.getValueAt(6, 1);
-            int LCTCount = (int) jTableModel_setting.getValueAt(7, 1);
-            int FCTCount = (int) jTableModel_setting.getValueAt(8, 1);
+            int Timeout = (int) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.LIVETIMEOUT_ROW, 1);
+            String RCWhen = (String) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.RECHECKINGWHEN_ROW, 1);
+            int RCCount = (int) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.RECHECKINGCOUNT_ROW, 1);
+            boolean IsBLC = (boolean) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.BLACKLISTCHECKING_ROW, 1);
+            boolean IsLC = (boolean) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.LIVECHECKING_ROW, 1);
+            boolean IsFC = (boolean) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.FRESHCHECKING_ROW, 1);
+            int BLCTCount = (int) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.BLCHECKINGTHREADCOUNT_ROW, 1);
+            int LCTCount = (int) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.LCHECKINGTHREADCOUNT_ROW, 1);
+            String Bitvisepath = (String) jTableModel_setting.getValueAt(
+                    SSHsTableSettingModel.BITVISEPATH_ROW, 1);
             prefers.setJTableSettingPrefs(Timeout,
-                    RCWhen, RCCount, BLCTCount, LCTCount, FCTCount, IsBLC, IsLC, IsFC);
+                    RCWhen, RCCount, BLCTCount, LCTCount,
+                    Bitvisepath,
+                    IsBLC, IsLC, IsFC);
             super.windowClosing(e);
         }
 
@@ -151,28 +166,20 @@ public class SSHCheckerView extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Setting Table">          
     private void settingTable() {
 
-        String[] ColName = new String[]{"Setting", "Value"};
-        Object[][] RowData;
-        RowData = new Object[][]{
-            {"TimeOut(ms)", prefers.JTableSettingTimeout},
-            {"Rechecking when", prefers.JTableSettingRCWhen},
-            {"Rechecking count", prefers.JTableSettingRCCount},
-            {"Blacklist checking", prefers.JTableSettingIsBLC},
-            {"Live checking", prefers.JTableSettingIsLC},
-            {"Fresh checking", prefers.JTableSettingIsFC},
-            {"BLChecking Thread count", prefers.JTableSettingBLCTCount},
-            {"LChecking  Thread count", prefers.JTableSettingLCTCount},
-            {"FChecking Thread count", prefers.JTableSettingFCTCount}
+        Object[] RowData = new Object[]
+        {
+            prefers.JTableSettingTimeout,
+            prefers.JTableSettingRCWhen,
+            prefers.JTableSettingRCCount,
+            prefers.JTableSettingIsBLC,
+            prefers.JTableSettingIsLC,
+            prefers.JTableSettingIsFC,
+            prefers.JTableSettingBLCTCount,
+            prefers.JTableSettingLCTCount,
+            prefers.JTableSettingBitvisePath,
+            0
         };
-        boolean[] ColEditable = new boolean[]{false, true};
-        jTable_setting.setModel(new DefaultTableModel(RowData, ColName) {
-
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return ColEditable[column];
-            }
-
-        });
+        jTable_setting.setModel(new SSHsTableSettingModel(RowData));
 
         JComboBox RecheckingComboBox = new JComboBox();
         RecheckingComboBox.addItem("not-using");
@@ -195,8 +202,16 @@ public class SSHCheckerView extends javax.swing.JFrame {
         Editor.setEditorAt(5, new DefaultCellEditor(jcheckbox));
         Editor.setEditorAt(6, new IntegerEditor(1, 100));
         Editor.setEditorAt(7, new IntegerEditor(1, 100));
-        Editor.setEditorAt(8, new IntegerEditor(1, 100));
+        Editor.setEditorAt(8, new FileChooseEditor(this));
+        Editor.setEditorAt(9, new DefaultCellEditor(new JTextField()) {
+            //make it no editing
+            @Override
+            public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                return null;
+            }
 
+        });
+        
         Renderer.setRendererAt(0, new IntegerRenderer());
         Renderer.setRendererAt(2, new IntegerRenderer());
         Renderer.setRendererAt(3, new CheckBoxRenderer());
@@ -204,7 +219,8 @@ public class SSHCheckerView extends javax.swing.JFrame {
         Renderer.setRendererAt(5, new CheckBoxRenderer());
         Renderer.setRendererAt(6, new IntegerRenderer());
         Renderer.setRendererAt(7, new IntegerRenderer());
-        Renderer.setRendererAt(8, new IntegerRenderer());
+        Renderer.setRendererAt(8, new FileChooseRenderer());
+        Renderer.setRendererAt(9, new ProgressRenderer());
 
         jTable_setting.getColumn("Value").setCellEditor(Editor);
         jTable_setting.getColumn("Value").setCellRenderer(Renderer);
@@ -238,7 +254,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
                 TextwithColor_HashMap
         ));
         jTable_sshlist.getColumn("Country").setCellRenderer(new LabelwithFlagRenderer());
-        jTable_sshlist.getColumn("Blacklist%").setCellRenderer(new ProgressRenderer());
+        jTable_sshlist.getColumn("Blacklist%").setCellRenderer(new ProgressBLCheckingRenderer());
 
     }
 
@@ -660,7 +676,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
     }//GEN-LAST:event_jPopupMenu_log_clearActionPerformed
 
     private void jMenu_file_newActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenu_file_newActionPerformed
-        if (globalsaveFile == null) {
+        if (globalopenFile == null) {
             if ((int) jTableModel_sshlist.getValueAt(0, 0) != 0) {
                 int Choose = JOptionPane.showConfirmDialog(this,
                         "Do you want to save before clearing all data?",
@@ -676,14 +692,14 @@ public class SSHCheckerView extends javax.swing.JFrame {
         clearSSHListData();
         clearLog();
         insertLog(welcometext);
-        globalsaveFile = null;
+        globalopenFile = null;
 
     }//GEN-LAST:event_jMenu_file_newActionPerformed
 
     private void jPopupMenu_table_addActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jPopupMenu_table_addActionPerformed
-        File sshFile = OpenFileDialog();
+        File sshFile = OpenFileDialog(new FileNameExtensionFilter("SSH file text (.txt)", "txt"));
         if (sshFile != null) {
-
+            globalopenFile = sshFile;
             int count = SSHListStringIntoTable(ReadFile(sshFile));
             if (count != 0) {
                 insertLog(setTagtoText(processtext, "ProcessText", "Added file: " + sshFile.getName()));
@@ -704,7 +720,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
     }//GEN-LAST:event_jPopupMenu_table_deleteActionPerformed
 
     private void jMenu_file_openActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenu_file_openActionPerformed
-        if (globalsaveFile == null) {
+        if (globalopenFile == null) {
             if ((int) jTableModel_sshlist.getValueAt(0, 0) != 0) {
                 int Choose = JOptionPane.showConfirmDialog(this,
                         "Do you want to save before clearing all data?",
@@ -717,7 +733,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
                 }
             }
         }
-        File sshFile = OpenFileDialog();
+        File sshFile = OpenFileDialog(new FileNameExtensionFilter("SSH file text (.txt)", "txt"));
         if (sshFile != null) {
             clearSSHListData();
             int count = SSHListStringIntoTable(ReadFile(sshFile));
@@ -725,26 +741,28 @@ public class SSHCheckerView extends javax.swing.JFrame {
                 insertLog(setTagtoText(processtext, "ProcessText", "Added file: " + sshFile.getName()));
                 insertLog(setTagtoText(processtext, "ProcessText", "Total: " + count));
             }
-            globalsaveFile = sshFile;
+            globalopenFile = sshFile;
         }
     }//GEN-LAST:event_jMenu_file_openActionPerformed
 
     private void jMenu_file_saveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenu_file_saveActionPerformed
-        if (globalsaveFile == null) {
-            globalsaveFile = SaveFileDialog();
+        if (globalsaveDir == null) {
+            globalsaveDir = SaveFileDialog(JFileChooser.DIRECTORIES_ONLY, null).getAbsolutePath();
         }
-        if (globalsaveFile != null) {
-            insertLog(setTagtoText(processtext, "ProcessText", "Saved: " + globalsaveFile));
+        if (globalsaveDir != null) {
+            insertLog(setTagtoText(processtext, "ProcessText", "Saved: " + globalopenFile));
             List<SSH> sshs = jTableModel_sshlist.getAllRow();
-            SSHListArrayIntoFile(globalsaveFile, sshs);
+            SSHListArrayIntoFile(globalopenFile, sshs);
         }
     }//GEN-LAST:event_jMenu_file_saveActionPerformed
 
     private void jMenu_file_saveasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenu_file_saveasActionPerformed
-        if ((globalsaveFile = SaveFileDialog()) != null) {
-            insertLog(setTagtoText(processtext, "ProcessText", "Saved: " + globalsaveFile));
+        File sshdir = SaveFileDialog(JFileChooser.DIRECTORIES_ONLY, null);
+        if (sshdir != null) {
+            globalsaveDir = sshdir.getAbsolutePath();
+            insertLog(setTagtoText(processtext, "ProcessText", "Saved: " + globalopenFile));
             List<SSH> sshs = jTableModel_sshlist.getAllRow();
-            SSHListArrayIntoFile(globalsaveFile, sshs);
+            SSHListArrayIntoFile(globalopenFile, sshs);
         }
     }//GEN-LAST:event_jMenu_file_saveasActionPerformed
 
@@ -757,61 +775,67 @@ public class SSHCheckerView extends javax.swing.JFrame {
 
 
     private void jPopupMenu_table_checkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jPopupMenu_table_checkActionPerformed
-        
+
         check c = new check();
         c.start();
     }//GEN-LAST:event_jPopupMenu_table_checkActionPerformed
     class check extends Thread {
-        
+  
         @Override
         public void run() {
-            //Setting for starting
-            boolean isLiveC = (boolean) jTableModel_setting.getValueAt(LIVECHECKING_ROW, 1);
-            boolean isFreshC = (boolean) jTableModel_setting.getValueAt(FRESHCHECKING_ROW, 1);
-            boolean isBListC = (boolean) jTableModel_setting.getValueAt(BLACKLISTCHECKING_ROW, 1);
             
+            
+            //Setting for starting
+            boolean isLiveC = (boolean) jTableModel_setting.getValueAt(SSHsTableSettingModel.LIVECHECKING_ROW, 1);
+            boolean isFreshC = (boolean) jTableModel_setting.getValueAt(SSHsTableSettingModel.FRESHCHECKING_ROW, 1);
+            boolean isBListC = (boolean) jTableModel_setting.getValueAt(SSHsTableSettingModel.BLACKLISTCHECKING_ROW, 1);
+
             String[] ID = new String[]{
-                SSHCheckingFactory.LIVEID, 
-                SSHCheckingFactory.FRESHID,
+                SSHCheckingFactory.LIVEID,
                 SSHCheckingFactory.BLACKLISTID
             };
             boolean[] isCheck = new boolean[]{
-                isLiveC, 
-                isFreshC, 
+                isLiveC,
                 isBListC
             };
             int[] countThread = new int[]{
-                (int) jTableModel_setting.getValueAt(LCHECKINGTHREADCOUNT_ROW, 1),
-                (int) jTableModel_setting.getValueAt(FCHECKINGTHREADCOUNT_ROW, 1),
-                (int) jTableModel_setting.getValueAt(BLCHECKINGTHREADCOUNT_ROW, 1)
+                (int) jTableModel_setting.getValueAt(SSHsTableSettingModel.LCHECKINGTHREADCOUNT_ROW, 1),
+                (int) jTableModel_setting.getValueAt(SSHsTableSettingModel.BLCHECKINGTHREADCOUNT_ROW, 1)
             };
             int[] timeout = new int[]{
-                (int) jTableModel_setting.getValueAt(LIVETIMEOUT_ROW, 1),
-                (int) jTableModel_setting.getValueAt(FTIMEOUT_ROW, 1),
-                (int) jTableModel_setting.getValueAt(BLTIMEOUT_ROW, 1)
+                (int) jTableModel_setting.getValueAt(SSHsTableSettingModel.LIVETIMEOUT_ROW, 1),
+                (int) jTableModel_setting.getValueAt(SSHsTableSettingModel.BLTIMEOUT_ROW, 1)
             };
             //Now! start checking...
             List<SSH> listSSH = new ArrayList<SSH>(jTableModel_sshlist.getAllRow());
+            int numSSH = 0;
             for (int i = 0; i < ID.length; i++) {
-                if (!(isCheck[i]&&SSHCheckingFactory.isAvaliable(ID[i]))) continue;
-                
+                if (!(isCheck[i] && SSHCheckingFactory.isAvaliable(ID[i]))) {
+                    continue;
+                }
                 //Add threads to ExecutorService
                 ExecutorService pool = Executors.newFixedThreadPool(countThread[i]);
                 ArrayList<Future> al = new ArrayList<Future>();
                 for (SSH ssh : listSSH) {
+                    numSSH = listSSH.size();
                     SSHChecking check = SSHCheckingFactory.getSSHChecking(
                             ID[i],
                             ssh,
                             timeout[i],
                             jTableModel_sshlist
                     );
-                    
+                    //fresh checking was ticked
+                    if (ID[i].equals(SSHCheckingFactory.LIVEID)) {
+                        ((SSHCheckLive) check).setFreshChecking(isFreshC);
+                    }
                     al.add(pool.submit(check));
                 }
                 //waiting for threads to finish
                 for (Future future : al) {
                     try {
-                        if(future!=null) future.get();
+                        if (future != null) {
+                            future.get();
+                        }
                     } catch (InterruptedException | ExecutionException ex) {
                         Logger.getLogger(SSHCheckerView.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -831,17 +855,46 @@ public class SSHCheckerView extends javax.swing.JFrame {
     }
 
     private void SSHListArrayIntoFile(File file, List<SSH> sshs) {
-        try (FileOutputStream out = new FileOutputStream(file)) {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
-            for (SSH ssh : sshs) {
-                bw.write(ssh.toString());
-                bw.newLine();
-                bw.flush();
+        try {
+            System.out.println(globalsaveDir + "\\" + file.getName() + ".txt");
+            File liveF = new File(globalsaveDir + "\\" + file.getName() + "-live.txt"); //live
+            File liveD = new File(globalsaveDir + "\\" + file.getName() + "-die.txt"); //die
+            if (!liveF.exists()) {
+                liveF.createNewFile();
+            }
+            if (!liveD.exists()) {
+                liveD.createNewFile();
             }
 
-        } catch (FileNotFoundException ex) {
-            insertLog(setTagtoText(errortext, "ErrorText",
-                    SSHCheckerView.class.getName() + ": File not found !"));
+            try {
+                FileOutputStream liveout = new FileOutputStream(liveF);
+                BufferedWriter livebw = new BufferedWriter(new OutputStreamWriter(liveout));
+                FileOutputStream dieout = new FileOutputStream(liveD);
+                BufferedWriter diebw = new BufferedWriter(new OutputStreamWriter(dieout));
+
+                BufferedWriter nowbw = null;
+                for (SSH ssh : sshs) {
+                    if (ssh.getStatus().equals("Working")) {
+                        nowbw = livebw;
+                    } else {
+                        nowbw = diebw;
+                    }
+
+                    nowbw.write(ssh.toString());
+                    nowbw.newLine();
+                    nowbw.flush();
+                }
+                liveout.close();
+                dieout.close();
+
+            } catch (FileNotFoundException ex) {
+                insertLog(setTagtoText(errortext, "ErrorText",
+                        SSHCheckerView.class.getName() + ": File not found !"));
+            } catch (IOException ex) {
+                insertLog(setTagtoText(errortext, "ErrorText",
+                        SSHCheckerView.class.getName() + ": " + ex));
+            }
+
         } catch (IOException ex) {
             insertLog(setTagtoText(errortext, "ErrorText",
                     SSHCheckerView.class.getName() + ": " + ex));
@@ -900,20 +953,24 @@ public class SSHCheckerView extends javax.swing.JFrame {
         return sb.toString();
     }
 
-    private File OpenFileDialog() {
+    @Override
+    public File OpenFileDialog(FileFilter filter) {
         JFileChooser filechooser = new JFileChooser();
         filechooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        filechooser.setFileFilter(new FileNameExtensionFilter("SSH file text (.txt)", "txt"));
+        filechooser.setFileFilter(filter);
         if (filechooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             return filechooser.getSelectedFile().getAbsoluteFile();
         }
         return null;
     }
 
-    private File SaveFileDialog() {
+    @Override
+    public File SaveFileDialog(int typeSave, FileFilter filter) {
         JFileChooser filechooser = new JFileChooser();
-        filechooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        filechooser.setFileFilter(new FileNameExtensionFilter("SSH file text (.txt)", "txt"));
+        filechooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        if (typeSave != JFileChooser.DIRECTORIES_ONLY && filter != null) {
+            filechooser.setFileFilter(filter);
+        }
         if (filechooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             return filechooser.getSelectedFile().getAbsoluteFile();
         }
@@ -975,7 +1032,7 @@ public class SSHCheckerView extends javax.swing.JFrame {
     // End of variables declaration//GEN-END:variables
 
     private SSHsTableModel jTableModel_sshlist;
-    private DefaultTableModel jTableModel_setting;
+    private SSHsTableSettingModel jTableModel_setting;
     private HTMLDocument htmldoc = null;
     private HTMLEditorKit htmleditorKit = null;
     private final String defaultlogtext
@@ -999,20 +1056,11 @@ public class SSHCheckerView extends javax.swing.JFrame {
             = "<p><font color=\"#696969\">[ProcessText]</font></p\n>";
     private DatabaseReader dbreader = null;
     private File ipDB = new File(getClass().getResource("/Database/GeoLite2-Country.mmdb").getPath());
-    private File globalsaveFile = null;
+    private String globalsaveDir = null;
+    private File globalopenFile = null;
     private SSHCheckerPreferences prefers = new SSHCheckerPreferences();
 
-    private final int LIVETIMEOUT_ROW           = 0;
-    private final int RECHECKINGWHEN_ROW        = 1;
-    private final int RECHECKINGCOUNT_ROW       = 2;
-    private final int BLACKLISTCHECKING_ROW     = 3;
-    private final int LIVECHECKING_ROW          = 4;
-    private final int FRESHCHECKING_ROW         = 5;
-    private final int BLCHECKINGTHREADCOUNT_ROW = 6;
-    private final int LCHECKINGTHREADCOUNT_ROW  = 7;
-    private final int FCHECKINGTHREADCOUNT_ROW  = 8;
-    private final int BLTIMEOUT_ROW             = 0;
-    private final int FTIMEOUT_ROW              = 0;
-    
+
+
     //</editor-fold>
 }

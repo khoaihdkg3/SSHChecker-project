@@ -18,7 +18,8 @@ public class SSHCheckerPreferences {
     public int JFramePrefsDivider1, JFramePrefsDivider2;
     public String JTableSettingRCWhen;
     public int JTableSettingTimeout,JTableSettingRCCount,JTableSettingBLCTCount,
-            JTableSettingLCTCount,JTableSettingFCTCount;
+            JTableSettingLCTCount;
+    public String JTableSettingBitvisePath;
     public boolean JTableSettingIsBLC, JTableSettingIsLC, JTableSettingIsFC;
     
     public SSHCheckerPreferences(){
@@ -33,7 +34,7 @@ public class SSHCheckerPreferences {
         JTableSettingRCCount = JTableSettingPrefs.getInt("RCCount", 5);
         JTableSettingBLCTCount = JTableSettingPrefs.getInt("BLCTCount", 10);
         JTableSettingLCTCount = JTableSettingPrefs.getInt("LCTCount", 10);
-        JTableSettingFCTCount = JTableSettingPrefs.getInt("FCTCount", 10);
+        JTableSettingBitvisePath = JTableSettingPrefs.get("BitvisePath","C:\\BvSsh.exe");
         
         JTableSettingIsBLC = JTableSettingPrefs.getBoolean("IsBLC", true);
         JTableSettingIsLC = JTableSettingPrefs.getBoolean("IsLC", true);
@@ -48,13 +49,13 @@ public class SSHCheckerPreferences {
     }
     
     public void setJTableSettingPrefs(int timeout, String rcwhen, int rccount, int blctcount, int lctcount,
-            int fctcount, boolean isblc, boolean islc, boolean isfc){
+            String bitvisepath, boolean isblc, boolean islc, boolean isfc){
         JTableSettingPrefs.putInt("Timeout", timeout);
         JTableSettingPrefs.put("RCWhen", rcwhen);
         JTableSettingPrefs.putInt("RCCount", rccount);
         JTableSettingPrefs.putInt("BLCTCount", blctcount);
         JTableSettingPrefs.putInt("LCTCount", lctcount);
-        JTableSettingPrefs.putInt("FCTCount", fctcount);
+        JTableSettingPrefs.put("BitvisePath", bitvisepath);
         
         JTableSettingPrefs.putBoolean("IsBLC", isblc);
         JTableSettingPrefs.putBoolean("IsLC", islc);

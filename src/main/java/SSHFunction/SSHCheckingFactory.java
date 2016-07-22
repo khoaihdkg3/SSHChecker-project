@@ -14,15 +14,12 @@ import SSHChecker.SSH;
  */
 public class SSHCheckingFactory {
     public static final String LIVEID       = "Live";
-    public static final String FRESHID      = "Fresh";
     public static final String BLACKLISTID  = "Blacklist";
     
     public static SSHChecking getSSHChecking(String ID,SSH ssh, int timeout, SSHsTableModel model){
         switch(ID){
             case LIVEID:
                 return new SSHCheckLive(ssh, timeout, model);
-            case FRESHID:
-                return null;
             case BLACKLISTID:
                 return new SSHCheckBL(ssh, timeout, model);
             default:
